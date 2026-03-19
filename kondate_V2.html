@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>献立記録</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    :root {
+      --bg: #F7F3FF;
+      --card-bg: #FFFFFF;
+      --card-border: #D9C8FF;
+      --accent: #8C6BFF;
+      --accent-dark: #6A4FBF;
+      --text-main: #4A4A4A;
+      --text-sub: #777777;
+      --shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+    }
+
+    .app-container {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding-bottom: 80px;
+    }
+
+    h1 {
+      font-size: 20px;
+      margin: 16px;
+      color: var(--accent-dark);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h1 span.icon { font-size: 22px; }
+
+    .content { padding: 0 12px 12px; }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 14px 14px 10px;
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--accent-dark);
+    }
+
+    .field-label {
+      font-size: 13px;
+      color: var(--text-sub);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    input[type="text"],
+    textarea,
+    select {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid #DDDDFF;
+      padding: 8px 10px;
+      font-size: 14px;
+      outline: none;
+      background: #FAF8FF;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    input[type="text"]:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--accent);
+      background: #F5F0FF;
+    }
+
+    /* 保存ボタン（visibilityで安定化） */
+    .save-button-container {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 56px;
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
+      visibility: hidden;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .save-button-container.active {
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    .save-button {
+      background: var(--accent);
+      color: #FFFFFF;
+      border: none;
+      border-radius: 999px;
+      padding: 12px 32px;
+      font-size: 15px;
+      font-weight: 600;
+      box-shadow: 0 6px 14px rgba(140,107,255,0.35);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .save-button:active {
+      transform: translateY(1px);
+      box-shadow: 0 3px 8px rgba(140,107,255,0.35);
+    }
+
+    /* タブバー */
+    .tab-bar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 8px 12px calc(10px + env(safe-area-inset-bottom));
+      background: rgba(247,243,255,0.95);
+      backdrop-filter: blur(6px);
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+    }
+
+    .tab-inner {
+      display: flex;
+      gap: 6px;
+      background: rgba(255,255,255,0.7);
+      border-radius: 999px;
+      padding: 4px;
+    }
+
+    .tab {
+      flex: 1;
+      border-radius: 999px;
+      padding: 6px 4px;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      color: #9A8CCF;
+      min-height: 44px;
+    }
+
+    .tab.active {
+      background: #EDE4FF;
+      color: var(--accent-dark);
+      font-weight: 600;
+    }
+
+    .hidden { display: none; }
+
+    .meal-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .meal-date {
+      font-size: 13px;
+      color: var(--accent-dark);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .delete-btn {
+      border: none;
+      background: transparent;
+      color: #CC6688;
+      font-size: 16px;
+      padding: 0 4px;
+    }
+
+    .meal-line {
+      font-size: 14px;
+      margin: 2px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 4px;
+    }
+
+    .meal-label {
+      min-width: 48px;
+      color: var(--text-sub);
+      font-size: 13px;
+    }
+
+    .memo-toggle {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--accent);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .memo-content {
+      margin-top: 4px;
+      font-size: 13px;
+      color: var(--text-main);
+      white-space: pre-wrap;
+    }
+
+    .empty-message {
+      font-size: 13px;
+      color: var(--text-sub);
+      margin-top: 8px;
+    }
+
+    .random-title {
+      text-align: center;
+      font-size: 16px;
+      margin-bottom: 10px;
+      color: var(--accent-dark);
+    }
+
+    .random-button {
+      margin-top: 10px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .random-button button {
+      background: var(--accent);
+      color: #FFFFFF;
+      border: none;
+      border-radius: 999px;
+      padding: 10px 24px;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 3px 8px rgba(140,107,255,0.28);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    @media (min-width: 768px) {
+      .app-container {
+        max-width: 480px;
+        margin: 0 auto;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-container">
+    <h1><span class="icon">🍱</span><span>献立記録</span></h1>
+
+    <div class="content">
+      <!-- 入力タブ -->
+      <div id="tab-input" class="tab-page">
+        <div class="card">
+          <div class="card-title">🍽️ 今日の献立</div>
+
+          <div class="field">
+            <div class="field-label"><span class="icon">🍚</span><span>主菜</span></div>
+            <input type="text" id="mainDish" placeholder="例：鶏の照り焼き">
+          </div>
+
+          <!-- 肉の種類タグ -->
+          <div class="field">
+            <div class="field-label"><span class="icon">🥩</span><span>肉の種類</span></div>
+            <select id="meatType">
+              <option value="">選択なし</option>
+              <option value="豚肉">豚肉</option>
+              <option value="鶏肉">鶏肉</option>
+              <option value="牛肉">牛肉</option>
+              <option value="ひき肉">ひき肉</option>
+              <option value="魚">魚</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <div class="field-label"><span class="icon">🥗</span><span>副菜1</span></div>
+            <input type="text" id="sideDish1" placeholder="例：ほうれん草のおひたし">
+          </div>
+
+          <div class="field">
+            <div class="field-label"><span class="icon">🥗</span><span>副菜2</span></div>
+            <input type="text" id="sideDish2" placeholder="例：ポテトサラダ">
+          </div>
+
+          <div class="field">
+            <div class="field-label"><span class="icon">🍲</span><span>汁物</span></div>
+            <input type="text" id="soup" placeholder="例：豆腐とわかめの味噌汁">
+          </div>
+
+          <div class="field">
+            <div class="field-label"><span class="icon">📝</span><span>メモ（任意）</span></div>
+            <textarea id="memo" placeholder="例：家族に好評だった、次はにんじんを増やす など"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- 一覧タブ -->
+      <div id="tab-list" class="tab-page hidden">
+        <div id="mealList"></div>
+        <div id="listEmptyMessage" class="empty-message hidden">
+          まだ献立が登録されていません。
+        </div>
+      </div>
+
+      <!-- ランダムタブ -->
+      <div id="tab-random" class="tab-page hidden">
+
+        <!-- 肉の種類フィルタ -->
+        <div class="card" style="margin-bottom: 12px;">
+          <div class="field-label"><span class="icon">🥩</span><span>肉の種類で絞り込む</span></div>
+          <select id="randomMeatFilter">
+            <option value="">すべて</option>
+            <option value="豚肉">豚肉</option>
+            <option value="鶏肉">鶏肉</option>
+            <option value="牛肉">牛肉</option>
+            <option value="ひき肉">ひき肉</option>
+            <option value="魚">魚</option>
+          </select>
+        </div>
+
+        <div class="random-title">✨ 今日のおすすめ献立 ✨</div>
+        <div id="randomCardContainer"></div>
+        <div id="randomEmptyMessage" class="empty-message hidden">
+          過去の献立がないため、ランダム提案ができません。
+        </div>
+
+        <div class="random-button">
+          <button id="randomButton">
+            <span class="icon">🎲</span><span>もう一回！</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 保存ボタン -->
+    <div class="save-button-container" id="saveButtonContainer">
+      <button class="save-button" id="saveButton">
+        <span class="icon">💾</span><span>保存する</span>
+      </button>
+    </div>
+
+    <!-- タブバー -->
+    <div class="tab-bar">
+      <div class="tab-inner">
+        <div class="tab active" data-tab="input">
+          <div class="tab-icon">📝</div>
+          <div class="tab-label">入力</div>
+        </div>
+        <div class="tab" data-tab="list">
+          <div class="tab-icon">📚</div>
+          <div class="tab-label">一覧</div>
+        </div>
+        <div class="tab" data-tab="random">
+          <div class="tab-icon">🎲</div>
+          <div class="tab-label">ランダム</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'kondate_records_v1';
+
+    function loadMeals() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      try {
+        const data = JSON.parse(raw);
+        return Array.isArray(data) ? data : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveMeals(meals) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(meals));
+    }
+
+    function getTodayString() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = ('0' + (d.getMonth() + 1)).slice(-2);
+      const day = ('0' + d.getDate()).slice(-2);
+      const wNames = ['日','月','火','水','木','金','土'];
+      const w = wNames[d.getDay()];
+      return `${y}/${m}/${day}（${w}）`;
+    }
+
+    function renderList() {
+      const listEl = document.getElementById('mealList');
+      const emptyEl = document.getElementById('listEmptyMessage');
+      listEl.innerHTML = '';
+
+      const meals = loadMeals();
+      if (meals.length === 0) {
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      emptyEl.classList.add('hidden');
+
+      meals
+        .slice()
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .forEach(meal => {
+          const card = document.createElement('div');
+          card.className = 'card';
+
+          const header = document.createElement('div');
+          header.className = 'meal-card-header';
+
+          const dateEl = document.createElement('div');
+          dateEl.className = 'meal-date';
+          dateEl.innerHTML = `<span>📅</span><span>${meal.date}</span>`;
+
+          const delBtn = document.createElement('button');
+          delBtn.className = 'delete-btn';
+          delBtn.textContent = '×';
+          delBtn.title = '削除';
+          delBtn.addEventListener('click', () => {
+            if (confirm('この日の献立を削除しますか？')) {
+              const all = loadMeals();
+              const filtered = all.filter(m => m.id !== meal.id);
+              saveMeals(filtered);
+              renderList();
+            }
+          });
+
+          header.appendChild(dateEl);
+          header.appendChild(delBtn);
+          card.appendChild(header);
+
+          const lines = [
+            { label: '主菜', icon: '🍚', value: meal.mainDish },
+            { label: '副菜1', icon: '🥗', value: meal.sideDish1 },
+            { label: '副菜2', icon: '🥗', value: meal.sideDish2 },
+            { label: '汁物', icon: '🍲', value: meal.soup }
+          ];
+
+          lines.forEach(line => {
+            if (!line.value) return;
+            const row = document.createElement('div');
+            row.className = 'meal-line';
+            row.innerHTML =
+              `<span>${line.icon}</span>` +
+              `<span class="meal-label">${line.label}</span>` +
+              `<span>${line.value}</span>`;
+            card.appendChild(row);
+          });
+
+          if (meal.meatType) {
+            const tag = document.createElement('div');
+            tag.style = "font-size:12px; color:#8C6BFF; margin-left:24px;";
+            tag.textContent = `（${meal.meatType}）`;
+            card.appendChild(tag);
+          }
+
+          if (meal.memo && meal.memo.trim() !== '') {
+            const toggle = document.createElement('div');
+            toggle.className = 'memo-toggle';
+            toggle.innerHTML = `<span>▼</span><span>メモを見る</span>`;
+
+            const memoEl = document.createElement('div');
+            memoEl.className = 'memo-content hidden';
+            memoEl.textContent = meal.memo;
+
+            let open = false;
+            toggle.addEventListener('click', () => {
+              open = !open;
+              if (open) {
+                memoEl.classList.remove('hidden');
+                toggle.innerHTML = `<span>▲</span><span>メモを閉じる</span>`;
+              } else {
+                memoEl.classList.add('hidden');
+                toggle.innerHTML = `<span>▼</span><span>メモを見る</span>`;
+              }
+            });
+
+            card.appendChild(toggle);
+            card.appendChild(memoEl);
+          }
+
+          listEl.appendChild(card);
+        });
+    }
+
+    /* タグ対応ランダム抽選 */
+    function renderRandom() {
+      const container = document.getElementById('randomCardContainer');
+      const emptyEl = document.getElementById('randomEmptyMessage');
+      container.innerHTML = '';
+
+      const meals = loadMeals();
+      if (meals.length === 0) {
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      emptyEl.classList.add('hidden');
+
+      const selectedTag = document.getElementById('randomMeatFilter').value;
+
+      const mainCandidates = meals
+        .filter(m
