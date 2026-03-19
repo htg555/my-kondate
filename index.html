@@ -97,7 +97,6 @@
       background: #F5F0FF;
     }
 
-    /* 保存ボタン（visibilityで安定化） */
     .save-button-container {
       position: fixed;
       left: 0;
@@ -134,7 +133,6 @@
       box-shadow: 0 3px 8px rgba(140,107,255,0.35);
     }
 
-    /* タブバー */
     .tab-bar {
       position: fixed;
       left: 0;
@@ -263,12 +261,6 @@
       gap: 6px;
     }
 
-    @media (min-width: 768px) {
-      .app-container {
-        max-width: 480px;
-        margin: 0 auto;
-      }
-    }
   </style>
 </head>
 
@@ -527,4 +519,131 @@
       const selectedTag = document.getElementById('randomMeatFilter').value;
 
       const mainCandidates = meals
-        .filter(m
+        .filter(m => {
+          if (!m.mainDish) return false;
+          if (!selectedTag) return true;
+          return m.meatType === selectedTag;
+        })
+        .map(m => m.mainDish);
+
+      const side1Candidates = meals.map(m => m.sideDish1).filter(v => v);
+      const side2Candidates = meals.map(m => m.sideDish2).filter(v => v);
+      const soupCandidates  = meals.map(m => m.soup).filter(v => v);
+
+      const pick = arr => arr.length ? arr[Math.floor(Math.random() * arr.length)] : '';
+
+      const randomMeal = {
+        mainDish: pick(mainCandidates),
+        sideDish1: pick(side1Candidates),
+        sideDish2: pick(side2Candidates),
+        soup: pick(soupCandidates)
+      };
+
+      if (!randomMeal.mainDish) {
+        container.innerHTML = `<div class="empty-message">選択した肉の種類の主菜がありません。</div>`;
+        return;
+      }
+
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      const header = document.createElement('div');
+      header.className = 'meal-card-header';
+      header.innerHTML = `<div class="meal-date"><span>🎲</span><span>ランダム提案</span></div>`;
+      card.appendChild(header);
+
+      const lines = [
+        { label: '主菜', icon: '🍚', value: randomMeal.mainDish },
+        { label: '副菜1', icon: '🥗', value: randomMeal.sideDish1 },
+        { label: '副菜2', icon: '🥗', value: randomMeal.sideDish2 },
+        { label: '汁物', icon: '🍲', value: randomMeal.soup }
+      ];
+
+      lines.forEach(line => {
+        if (!line.value) return;
+        const row = document.createElement('div');
+        row.className = 'meal-line';
+        row.innerHTML =
+          `<span>${line.icon}</span>` +
+          `<span class="meal-label">${line.label}</span>` +
+          `<span>${line.value}</span>`;
+        card.appendChild(row);
+      });
+
+      container.appendChild(card);
+    }
+
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-page').forEach(p => p.classList.add('hidden'));
+      document.getElementById('tab-' + tabName).classList.remove('hidden');
+
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add('active');
+
+      const saveContainer = document.getElementById('saveButtonContainer');
+      saveContainer.classList.toggle('active', tabName === 'input');
+
+      if (tabName === 'list') {
+        renderList();
+      } else if (tabName === 'random') {
+        renderRandom();
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          const name = tab.getAttribute('data-tab');
+          switchTab(name);
+        });
+      });
+
+      document.getElementById('saveButton').addEventListener('click', () => {
+        const mainDish = document.getElementById('mainDish').value.trim();
+        const sideDish1 = document.getElementById('sideDish1').value.trim();
+        const sideDish2 = document.getElementById('sideDish2').value.trim();
+        const soup = document.getElementById('soup').value.trim();
+        const memo = document.getElementById('memo').value.trim();
+        const meatType = document.getElementById('meatType').value;
+
+        if (!mainDish && !sideDish1 && !sideDish2 && !soup && !memo) {
+          alert('少なくとも1つは入力してください。');
+          return;
+        }
+
+        const meals = loadMeals();
+        const now = Date.now();
+
+        meals.push({
+          id: 'meal_' + now,
+          date: getTodayString(),
+          mainDish,
+          sideDish1,
+          sideDish2,
+          soup,
+          memo,
+          meatType,
+          createdAt: now
+        });
+
+        saveMeals(meals);
+
+        document.getElementById('mainDish').value = '';
+        document.getElementById('sideDish1').value = '';
+        document.getElementById('sideDish2').value = '';
+        document.getElementById('soup').value = '';
+        document.getElementById('memo').value = '';
+        document.getElementById('meatType').value = '';
+
+        alert('今日の献立を保存しました。');
+      });
+
+      document.getElementById('randomButton').addEventListener('click', () => {
+        renderRandom();
+      });
+
+      switchTab('input');
+    });
+  </script>
+</body>
+</html>
